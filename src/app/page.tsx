@@ -164,6 +164,9 @@ export default function ChatInterface() {
           <p className="text-sm text-[#6b7280] mt-2">
             Here to guide your nutrition journey.
           </p>
+          <p className="text-xs text-[#9ca3af] mt-1">
+            Made by Abdul Wasay Abid
+          </p>
         </div>
 
         {/* Chat Messages Container */}
@@ -241,6 +244,9 @@ export default function ChatInterface() {
               <Send size={18} />
             )}
           </button>
+          <div className="absolute bottom-0 left-0 w-full text-center text-xs text-[#9ca3af] pb-2">
+            Made by Abdul Wasay Abid
+          </div>
         </form>
       </div>
     </main>
