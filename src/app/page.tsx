@@ -148,14 +148,11 @@ export default function ChatInterface() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f0fdfa] to-[#dcfce7]">
-      {/* Adjusted Main Container with flex */}
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f0fdfa] to-[#dcfce7]">
+      {/* Main Chat Container */}
       <div className="flex flex-col w-full max-w-3xl h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden relative">
         {/* Adjusted Header Section */}
-        {/* Adjusted Header Section */}
         <div className="absolute top-0 left-4 p-4 z-10">
-          {" "}
-          {/* Adjusted top to 10 */}
           <h1
             className={`text-4xl text-[#34d399] ${montserrat.className} drop-shadow-md`}
           >
@@ -163,9 +160,6 @@ export default function ChatInterface() {
           </h1>
           <p className="text-sm text-[#6b7280] mt-2">
             Here to guide your nutrition journey.
-          </p>
-          <p className="text-xs text-[#9ca3af] mt-1">
-            Made by Abdul Wasay Abid
           </p>
         </div>
 
@@ -176,8 +170,6 @@ export default function ChatInterface() {
         >
           {initialModelMessage && (
             <div className="mb-3 flex justify-start mt-2">
-              {" "}
-              {/* Added margin-top */}
               <div className="max-w-sm p-3 rounded-lg shadow-md bg-[#f1f5f9] text-gray-700 text-sm">
                 <Markdown>{initialModelMessage.content}</Markdown>
               </div>
@@ -203,8 +195,6 @@ export default function ChatInterface() {
           ))}
           {isLoading && streamMessageData && (
             <div className="mb-3 mt-2 flex justify-start">
-              {" "}
-              {/* added mt-2 */}
               <div className="max-w-sm p-3 rounded-lg shadow-md bg-[#f1f5f9] text-gray-700 text-sm">
                 <Markdown>{streamMessageData}</Markdown>
               </div>
@@ -244,10 +234,12 @@ export default function ChatInterface() {
               <Send size={18} />
             )}
           </button>
-          <div className="absolute bottom-0 left-0 w-full text-center text-xs text-[#9ca3af] pb-2">
-            Made by Abdul Wasay Abid
-          </div>
         </form>
+      </div>
+
+      {/* Attribution Block */}
+      <div className="mt-4 text-center text-xs text-[#9ca3af]">
+        Made by Abdul Wasay Abid
       </div>
     </main>
   );
