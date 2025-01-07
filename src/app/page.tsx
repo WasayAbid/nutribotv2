@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from "react";
 import Markdown from "react-markdown";
 import { Send, ImageIcon } from "lucide-react";
 import { Montserrat } from "next/font/google";
+import Image from "next/image";
 
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["700"] });
 
@@ -219,15 +220,24 @@ export default function ChatInterface() {
     <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f0fdfa] to-[#dcfce7]">
       {/* Header Section */}
       <header className="w-full max-w-3xl bg-white rounded-t-xl shadow-2xl p-4 flex justify-between items-center">
-        <div className="flex flex-col">
-          <h1
-            className={`text-3xl text-[#34d399] ${montserrat.className} drop-shadow-md`}
-          >
-            NutriBot
-          </h1>
-          <p className="text-sm text-[#6b7280] mt-1">
-            Here to guide your nutrition journey.
-          </p>
+        <div className="flex items-center">
+          <Image
+            src="/images/x.png" // Path to your icon
+            alt="Website Icon"
+            width={100} // Adjust as needed
+            height={100} // Adjust as needed
+            className="mr-2" // Add some spacing
+          />
+          <div className="flex flex-col">
+            <h1
+              className={`text-3xl text-[#34d399] ${montserrat.className} drop-shadow-md`}
+            >
+              NutriBot
+            </h1>
+            <p className="text-sm text-[#6b7280] mt-1">
+              Here to guide your nutrition journey.
+            </p>
+          </div>
         </div>
       </header>
       {/* Chat Interface */}
