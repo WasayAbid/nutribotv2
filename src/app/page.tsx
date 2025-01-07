@@ -4,10 +4,11 @@ import {
   GoogleGenerativeAI,
   HarmCategory,
   HarmBlockThreshold,
+  Part,
 } from "@google/generative-ai";
 import { useState, useEffect, useRef } from "react";
 import Markdown from "react-markdown";
-import { Send } from "lucide-react";
+import { Send, ImageIcon } from "lucide-react";
 import { Montserrat } from "next/font/google";
 
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["700"] });
@@ -16,7 +17,13 @@ const MODEL_NAME = "gemini-2.0-flash-exp";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 export default function ChatInterface() {
-  const [messages, setMessages] = useState([{ role: "user", content: "" }]);
+  const [messages, setMessages] = useState<
+    {
+      role: "user" | "model";
+      content: string;
+      imageUrl?: string;
+    }[]
+  >([{ role: "user", content: "" }]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -26,6 +33,9 @@ export default function ChatInterface() {
     role: "user" | "model";
     content: string;
   } | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null); // Ref for the file input
 
   const systemPrompt = `You are a helpful nutritional specialist named NutriBot. Your main role is to provide nutritional guidance, answer questions about diet, food, and overall wellness, and offer healthy eating advice. You must not engage in topics that are not related to nutrition, health, and wellness. If asked an irrelevant question respond with "I am only here to assist with nutritional questions." Keep your responses concise and helpful.`;
 
@@ -49,14 +59,29 @@ export default function ChatInterface() {
     }
   }, [messages, isFirstRender]);
 
-  async function sendMessage(newMessage: string) {
-    if (!newMessage.trim()) return;
+  async function sendMessage(newMessage: string, image?: File | null) {
+    if (!newMessage.trim() && !image) return;
 
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", content: newMessage },
-    ]);
+    const userMessage: {
+      role: "user";
+      content: string;
+      imageUrl?: string;
+    } = {
+      role: "user",
+      content: newMessage,
+    };
+    if (image && imagePreviewUrl) {
+      userMessage.imageUrl = imagePreviewUrl;
+    }
+
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInput("");
+    // Clear input after send
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+    setSelectedImage(null);
+    setImagePreviewUrl(null);
     setIsLoading(true);
     setStreamMessageData("");
 
@@ -103,9 +128,19 @@ export default function ChatInterface() {
         })),
       ],
     });
-
     try {
-      const result = await chat.sendMessageStream(newMessage);
+      const parts: Part[] = [{ text: newMessage }];
+
+      if (image) {
+        const base64Image = await toBase64(image);
+        parts.push({
+          inlineData: {
+            mimeType: image.type,
+            data: base64Image.split(",")[1],
+          },
+        });
+      }
+      const result = await chat.sendMessageStream(parts);
       let text = "";
       const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
       const streamingDelay = 20;
@@ -143,36 +178,63 @@ export default function ChatInterface() {
     setInput(event.target.value);
   };
 
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setSelectedImage(null);
+      setImagePreviewUrl(null);
+    }
+  };
+
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && !isLoading) {
-      sendMessage(input);
+      sendMessage(input, selectedImage);
     }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isLoading) {
-      sendMessage(input);
+      sendMessage(input, selectedImage);
     }
+  };
+
+  const toBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f0fdfa] to-[#dcfce7]">
-      <div className="flex flex-col w-full max-w-3xl h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden relative">
-        <div className="absolute top-0 left-4 p-4 z-10">
+      {/* Header Section */}
+      <header className="w-full max-w-3xl bg-white rounded-t-xl shadow-2xl p-4 flex justify-between items-center">
+        <div className="flex flex-col">
           <h1
-            className={`text-4xl text-[#34d399] ${montserrat.className} drop-shadow-md`}
+            className={`text-3xl text-[#34d399] ${montserrat.className} drop-shadow-md`}
           >
             NutriBot
           </h1>
-          <p className="text-sm text-[#6b7280] mt-2">
+          <p className="text-sm text-[#6b7280] mt-1">
             Here to guide your nutrition journey.
           </p>
         </div>
-
+      </header>
+      {/* Chat Interface */}
+      <div className="flex flex-col w-full max-w-3xl h-[80vh] bg-white rounded-b-xl shadow-2xl overflow-hidden relative">
         <div
           ref={chatContainerRef}
-          className="flex-grow overflow-y-auto px-6 pt-24 pb-16 rounded-t-lg"
+          className="flex-grow overflow-y-auto px-6 pt-8 pb-16 rounded-t-lg"
         >
           {initialModelMessage && (
             <div className="mb-3 flex justify-start mt-2">
@@ -196,6 +258,18 @@ export default function ChatInterface() {
                 }`}
               >
                 <Markdown>{message.content}</Markdown>
+                {message.imageUrl && (
+                  <div className="mt-2">
+                    {
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={message.imageUrl}
+                        alt="uploaded image"
+                        className="max-h-40 w-auto rounded-md shadow-md"
+                      />
+                    }
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -214,11 +288,34 @@ export default function ChatInterface() {
             </div>
           )}
         </div>
-
         <form
           onSubmit={handleSubmit}
           className="flex items-center border-t-2 border-[#e2e8f0] pt-4 bg-white p-4 absolute bottom-0 left-0 w-full"
         >
+          <label htmlFor="image-input" className="mr-2 cursor-pointer">
+            <ImageIcon
+              size={24}
+              className="text-gray-500 hover:text-gray-700 transition"
+            />
+          </label>
+          <input
+            type="file"
+            id="image-input"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+            ref={imageInputRef} // added the ref
+          />
+
+          {imagePreviewUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imagePreviewUrl}
+              alt="Preview"
+              className="max-w-[50px] max-h-[50px] rounded-md mr-2 shadow-md"
+            />
+          )}
+
           <input
             type="text"
             value={input}
@@ -241,10 +338,9 @@ export default function ChatInterface() {
           </button>
         </form>
       </div>
-
-      <div className="mt-4 text-center text-xs text-[#9ca3af]">
+      <footer className="mt-4 text-center text-xs text-[#9ca3af]">
         Made by Abdul Wasay Abid
-      </div>
+      </footer>
     </main>
   );
 }
