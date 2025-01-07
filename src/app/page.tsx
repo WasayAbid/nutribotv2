@@ -222,7 +222,7 @@ export default function ChatInterface() {
       <header className="w-full max-w-3xl bg-white rounded-t-xl shadow-2xl p-4 flex justify-between items-center">
         <div className="flex items-center">
           <Image
-            src="/images/x.png" // Path to your icon
+            src="/images/x.jpg" // Path to your icon
             alt="Website Icon"
             width={100} // Adjust as needed
             height={100} // Adjust as needed
