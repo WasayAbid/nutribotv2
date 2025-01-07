@@ -8,9 +8,9 @@ import {
 import { useState, useEffect, useRef } from "react";
 import Markdown from "react-markdown";
 import { Send } from "lucide-react";
-import { Montserrat } from "next/font/google"; // Import the Montserrat font
+import { Montserrat } from "next/font/google";
 
-const montserrat = Montserrat({ subsets: ["latin"], weight: ["700"] }); // Load Montserrat font
+const montserrat = Montserrat({ subsets: ["latin"], weight: ["700"] });
 
 const MODEL_NAME = "gemini-2.0-flash-exp";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
@@ -27,12 +27,15 @@ export default function ChatInterface() {
     content: string;
   } | null>(null);
 
+  const systemPrompt = `You are a helpful nutritional specialist named NutriBot. Your main role is to provide nutritional guidance, answer questions about diet, food, and overall wellness, and offer healthy eating advice. You must not engage in topics that are not related to nutrition, health, and wellness. If asked an irrelevant question respond with "I am only here to assist with nutritional questions." Keep your responses concise and helpful.`;
+
   useEffect(() => {
     if (messages.length === 1 && isFirstRender) {
       setTimeout(() => {
         setInitialModelMessage({
           role: "model",
-          content: "Hi there! I'm NutriBot. What can I help you with today?",
+          content:
+            "Hi there! I'm NutriBot. How can I help you with your nutrition today?",
         });
         setIsFirstRender(false);
       }, 500);
@@ -89,10 +92,16 @@ export default function ChatInterface() {
     const chat = model.startChat({
       generationConfig,
       safetySettings,
-      history: messages.map((msg) => ({
-        role: msg.role,
-        parts: [{ text: msg.content }],
-      })),
+      history: [
+        {
+          role: "user",
+          parts: [{ text: systemPrompt }],
+        },
+        ...messages.map((msg) => ({
+          role: msg.role,
+          parts: [{ text: msg.content }],
+        })),
+      ],
     });
 
     try {
@@ -149,9 +158,7 @@ export default function ChatInterface() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f0fdfa] to-[#dcfce7]">
-      {/* Main Chat Container */}
       <div className="flex flex-col w-full max-w-3xl h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden relative">
-        {/* Adjusted Header Section */}
         <div className="absolute top-0 left-4 p-4 z-10">
           <h1
             className={`text-4xl text-[#34d399] ${montserrat.className} drop-shadow-md`}
@@ -163,7 +170,6 @@ export default function ChatInterface() {
           </p>
         </div>
 
-        {/* Chat Messages Container */}
         <div
           ref={chatContainerRef}
           className="flex-grow overflow-y-auto px-6 pt-24 pb-16 rounded-t-lg"
@@ -209,7 +215,6 @@ export default function ChatInterface() {
           )}
         </div>
 
-        {/* Input Form */}
         <form
           onSubmit={handleSubmit}
           className="flex items-center border-t-2 border-[#e2e8f0] pt-4 bg-white p-4 absolute bottom-0 left-0 w-full"
@@ -237,7 +242,6 @@ export default function ChatInterface() {
         </form>
       </div>
 
-      {/* Attribution Block */}
       <div className="mt-4 text-center text-xs text-[#9ca3af]">
         Made by Abdul Wasay Abid
       </div>
