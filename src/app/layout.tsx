@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/images/xbbb.jpg", // Ensure this path is correct relative to the public folder
     shortcut: "/images/xbbb.jpg",
-    apple: "/apple-touch-icon.png", // Path to the apple touch icon
+    apple: "/images/xbbb.jpg", // Path to the apple touch icon
   },
 };
 
