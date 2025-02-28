@@ -23,33 +23,30 @@ export default function ChatInterface() {
       role: "user" | "model";
       content: string;
       imageUrl?: string;
+      mimeType?: string;
     }[]
-  >([{ role: "user", content: "" }]);
+  >([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [streamMessageData, setStreamMessageData] = useState("");
-  const [isFirstRender, setIsFirstRender] = useState(true);
-  const [initialModelMessage, setInitialModelMessage] = useState<{
-    role: "user" | "model";
-    content: string;
-  } | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null); // Ref for the file input
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false); // New state
 
   const systemPrompt = `You are a helpful nutritional specialist named NutriBot. Your main role is to provide nutritional guidance, answer questions about diet, food, and overall wellness,gym,exercise,workout and offer healthy eating and gym advice. You must not engage in topics that are not related to food,fast food, fruits ,nutrition, health, and wellness,gym,exercise. If asked an irrelevant question respond with "I am only here to assist with nutritional questions." in differnt ways. Keep your responses in medium lenght.`;
 
   useEffect(() => {
-    if (messages.length === 1 && isFirstRender) {
-      setTimeout(() => {
-        setInitialModelMessage({
+    // Add the initial message *only once* when the component mounts.
+    if (!hasSentFirstMessage && messages.length === 0) {
+      setMessages([
+        {
           role: "model",
           content:
             "Hi there! I'm NutriBot. How can I help you with your nutrition today?",
-        });
-        setIsFirstRender(false);
-      }, 500);
+        },
+      ]);
     }
 
     if (chatContainerRef.current) {
@@ -58,26 +55,34 @@ export default function ChatInterface() {
         behavior: "smooth",
       });
     }
-  }, [messages, isFirstRender]);
+    // Add hasSentFirstMessage to the dependency array.
+  }, [messages, hasSentFirstMessage]);
+
 
   async function sendMessage(newMessage: string, image?: File | null) {
     if (!newMessage.trim() && !image) return;
+
+    let messageText = newMessage;
+    if (!newMessage.trim() && image) {
+      messageText = "User uploaded an image:";
+    }
 
     const userMessage: {
       role: "user";
       content: string;
       imageUrl?: string;
+      mimeType?: string;
     } = {
       role: "user",
-      content: newMessage,
+      content: messageText,
     };
+
     if (image && imagePreviewUrl) {
       userMessage.imageUrl = imagePreviewUrl;
+      userMessage.mimeType = image.type;
     }
-
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInput("");
-    // Clear input after send
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
@@ -115,50 +120,101 @@ export default function ChatInterface() {
       },
     ];
 
-    const chat = model.startChat({
-      generationConfig,
-      safetySettings,
-      history: [
-        {
-          role: "user",
-          parts: [{ text: systemPrompt }],
-        },
-        ...messages.map((msg) => ({
-          role: msg.role,
-          parts: [{ text: msg.content }],
-        })),
-      ],
-    });
     try {
-      const parts: Part[] = [{ text: newMessage }];
+      if (!hasSentFirstMessage) {
+        // First message: Use generateContentStream
+        const parts: Part[] = [{ text: messageText }];
+        if (image) {
+          const base64Image = await toBase64(image);
+          parts.push({
+            inlineData: {
+              mimeType: image.type,
+              data: base64Image.split(",")[1],
+            },
+          });
+        }
 
-      if (image) {
-        const base64Image = await toBase64(image);
-        parts.push({
-          inlineData: {
-            mimeType: image.type,
-            data: base64Image.split(",")[1],
-          },
+        const result = await model.generateContentStream({
+          contents: [{ role: "user", parts }], // contents takes an array of role/parts
+          generationConfig,
+          safetySettings,
         });
-      }
-      const result = await chat.sendMessageStream(parts);
-      let text = "";
-      const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-      const streamingDelay = 20;
 
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text();
-        text += chunkText;
-        await delay(streamingDelay);
-        setStreamMessageData(text);
+        let text = "";
+        const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+        const streamingDelay = 20;
+        for await (const chunk of result.stream) {
+          const chunkText = chunk.text();
+          text += chunkText;
+          await delay(streamingDelay);
+          setStreamMessageData(text);
+        }
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { role: "model", content: text },
+        ]);
+        setHasSentFirstMessage(true); // Mark first message as sent.
+
+      } else {
+        // Subsequent messages: Use startChat
+        const chatHistory = [
+          {
+            role: "user",
+            parts: [{ text: systemPrompt }],
+          },
+           ...messages.slice(0,-1).map((msg) => { // Slice to exclude the *current* user message
+            const messageParts: Part[] = [{ text: msg.content }];
+            if (msg.imageUrl && msg.mimeType) {
+              messageParts.push({
+                inlineData: {
+                  mimeType: msg.mimeType,
+                  data: msg.imageUrl.split(",")[1],
+                },
+              });
+            }
+            return { role: msg.role, parts: messageParts };
+          }),
+        ];
+
+        const currentUserParts: Part[] = [{ text: messageText }];
+        if (image) {
+          const base64Image = await toBase64(image);
+          currentUserParts.push({
+            inlineData: {
+              mimeType: image.type,
+              data: base64Image.split(",")[1],
+            },
+          });
+        }
+          chatHistory.push({ //Add the current message to the history
+            role: "user",
+            parts: currentUserParts
+          })
+
+
+        const chat = model.startChat({
+          generationConfig,
+          safetySettings,
+          history: chatHistory,
+        });
+
+        const result = await chat.sendMessageStream(currentUserParts);
+
+        let text = "";
+        const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+        const streamingDelay = 20;
+
+        for await (const chunk of result.stream) {
+          const chunkText = chunk.text();
+          text += chunkText;
+          await delay(streamingDelay);
+          setStreamMessageData(text);
+        }
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { role: "model", content: text },
+        ]);
       }
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          role: "model",
-          content: text,
-        },
-      ]);
     } catch (error) {
       console.error("Error sending message:", error);
       setMessages((prevMessages) => [
@@ -171,7 +227,6 @@ export default function ChatInterface() {
     } finally {
       setIsLoading(false);
       setStreamMessageData("");
-      setInitialModelMessage(null);
     }
   }
 
@@ -222,11 +277,11 @@ export default function ChatInterface() {
       <header className="w-full max-w-3xl bg-white rounded-t-xl shadow-2xl p-4 flex justify-between items-center">
         <div className="flex items-center">
           <Image
-            src="/images/x.jpg" // Path to your icon
+            src="/images/x.jpg"
             alt="Website Icon"
-            width={100} // Adjust as needed
-            height={100} // Adjust as needed
-            className="mr-2" // Add some spacing
+            width={100}
+            height={100}
+            className="mr-2"
           />
           <div className="flex flex-col">
             <h1
@@ -240,20 +295,12 @@ export default function ChatInterface() {
           </div>
         </div>
       </header>
-      {/* Chat Interface */}
       <div className="flex flex-col w-full max-w-3xl h-[80vh] bg-white rounded-b-xl shadow-2xl overflow-hidden relative">
         <div
           ref={chatContainerRef}
           className="flex-grow overflow-y-auto px-6 pt-8 pb-16 rounded-t-lg"
         >
-          {initialModelMessage && (
-            <div className="mb-3 flex justify-start mt-2">
-              <div className="max-w-sm p-3 rounded-lg shadow-md bg-[#f1f5f9] text-gray-700 text-sm">
-                <Markdown>{initialModelMessage.content}</Markdown>
-              </div>
-            </div>
-          )}
-          {messages.slice(1).map((message, index) => (
+          {messages.map((message, index) => (
             <div
               key={index}
               className={`mb-3 flex ${
@@ -270,14 +317,12 @@ export default function ChatInterface() {
                 <Markdown>{message.content}</Markdown>
                 {message.imageUrl && (
                   <div className="mt-2">
-                    {
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={message.imageUrl}
-                        alt="uploaded image"
-                        className="max-h-40 w-auto rounded-md shadow-md"
-                      />
-                    }
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={message.imageUrl}
+                      alt="uploaded image"
+                      className="max-h-40 w-auto rounded-md shadow-md"
+                    />
                   </div>
                 )}
               </div>
@@ -314,11 +359,11 @@ export default function ChatInterface() {
             accept="image/*"
             onChange={handleImageChange}
             className="hidden"
-            ref={imageInputRef} // added the ref
+            ref={imageInputRef}
           />
 
           {imagePreviewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={imagePreviewUrl}
               alt="Preview"
