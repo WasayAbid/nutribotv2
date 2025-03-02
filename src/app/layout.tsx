@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const poppins = Poppins({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-poppins",
 });
 
 export const metadata: Metadata = {
-  title: "NutriBot",
-  description: "A helpful nutritional specialist",
-
+  title: "NutriBot - Your Personal Nutrition Assistant",
+  description: "Get personalized nutrition advice, diet tips, and wellness guidance from NutriBot, your AI nutrition assistant.",
   icons: {
-    icon: "/images/xbbb.jpg", // Ensure this path is correct relative to the public folder
-    shortcut: "/images/xbbb.jpg",
-    apple: "/images/xbbb.jpg", // Path to the apple touch icon
+    icon: "/images/x.jpg",
+    shortcut: "/images/x.jpg",
+    apple: "/images/x.jpg",
   },
 };
 
@@ -30,9 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${inter.variable} ${poppins.variable} antialiased`}>
         {children}
       </body>
     </html>
