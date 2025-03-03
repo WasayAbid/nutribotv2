@@ -390,7 +390,7 @@ export default function ChatInterface() {
               Welcome to NutriBot!
             </h2>
             <p className={`text-center text-gray-600 max-w-md mb-8 ${poppins.className}`}>
-              I&aposm your personal nutrition assistant. Ask me anything about food, diet, nutrition, exercise, and wellness.
+              I&apos;m your personal nutrition assistant. Ask me anything about food, diet, nutrition, exercise, and wellness.
             </p>
             <div className="grid grid-cols-2 gap-3 w-full max-w-md mb-8">
               {quickPrompts.map((prompt, index) => (
