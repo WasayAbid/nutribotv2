@@ -61,7 +61,7 @@ export default function ChatInterface() {
       setMessages([
         {
           role: "model",
-          content: "⚠️ API Key is missing. Please add your Google Gemini API key to the .env.local file to use NutriBot.",
+          content: "⚠️ Please Enter Your Message Again",
         },
       ]);
       return;
